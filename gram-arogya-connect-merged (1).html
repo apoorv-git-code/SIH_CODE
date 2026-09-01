@@ -472,19 +472,13 @@
     <div class="flex items-center gap-1.5">
       <i class="fa-solid fa-earth-asia text-[var(--saffron-500)]"></i>
       <label for="lang-select" class="sr-only">Language</label>
-      <select id="lang-select" onchange="setAppLanguage(this.value)" disabled title="Loading translator..."
+      <select id="lang-select" onchange="setAppLanguage(this.value)" title="Change language"
         class="notranslate bg-slate-800 text-white text-xs font-medium border border-slate-700 rounded-md pl-2 pr-6 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--teal-600)] cursor-pointer disabled:opacity-50 disabled:cursor-wait">
         <option value="en">English</option>
         <option value="hi">हिन्दी (Hindi)</option>
         <option value="mr">मराठी (Marathi)</option>
-        <option value="bn">বাংলা (Bengali)</option>
-        <option value="gu">ગુજરાતી (Gujarati)</option>
-        <option value="ur">اردو (Urdu)</option>
-        <option value="te">తెలుగు (Telugu)</option>
-        <option value="ta">தமிழ் (Tamil)</option>
-        <option value="kn">ಕನ್ನಡ (Kannada)</option>
       </select>
-      <i id="lang-loading" class="fa-solid fa-circle-notch fa-spin text-[var(--saffron-500)] text-xs"></i>
+      <i id="lang-loading" class="fa-solid fa-circle-notch fa-spin text-[var(--saffron-500)] text-xs" title="Page-text translator loading — voice &amp; app language work already"></i>
     </div>
     <button onclick="triggerEmergencyHospitalAlert()" class="bg-[var(--danger)] hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 pulse-dot">
       <i class="fa-solid fa-truck-medical"></i> SOS
@@ -781,6 +775,10 @@
         <div class="flex flex-col gap-4">
           <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-100 flex flex-col items-center text-center">
             <h3 class="font-bold text-sm text-emerald-900 mb-2">Interoperable Offline QR Card</h3>
+            <div class="w-full bg-emerald-900/5 border border-emerald-200 rounded-lg py-1.5 mb-3">
+              <div class="text-[9px] text-emerald-700 font-bold uppercase tracking-wide">ABHA Health ID</div>
+              <div id="abha-id-display" class="text-sm font-mono font-bold text-emerald-900 tracking-wider">--</div>
+            </div>
             <div id="qr-container" class="bg-white p-3 rounded-xl shadow-sm mb-3 h-40 w-40 flex items-center justify-center border border-emerald-200">
               <span class="text-slate-400 text-xs">Generating…</span>
             </div>
@@ -1580,19 +1578,35 @@ function toggleSymptom(id, el){
 }
 
 const triageRules = [
-  {match:['injury','bodypain'], keywords:['injur','accident','fall','wound','bleed','जखम','चोट'], urgency:'priority', action:'Visit the Sub-Centre today for wound dressing.'},
+  {match:['injury'], keywords:['injur','accident','fall','wound','bleed','जखम','चोट'], urgency:'priority', action:'Visit the Sub-Centre today for wound dressing.'},
+
+  {match:['bodypain'], keywords:['pain','body pain','ache','अंगदुखी','दुखत'], urgency:'routine', action:'A routine teleconsultation is recommended to assess the pain and provide appropriate advice.'},
+
   {match:['chronic'], keywords:['bp','sugar','pressure','diabet','giddiness','dizz','चक्कर'], urgency:'priority', action:'Book a same-day teleconsultation to review your BP/sugar reading.'},
+
   {match:['pregnancy'], keywords:['pregnan','baby','labour','labor','गरोदर'], urgency:'priority', action:'Connect to an ANC-trained provider now for maternal checkup.'},
+
   {match:['childillness'], keywords:['child','baby','infant','fever','बाळ'], urgency:'emergency', action:'Escalate to Medical Officer immediately — infants require urgent evaluation.'},
+
   {match:['fever','cough'], keywords:['fever','cough','cold','breath','ताप','खोकला'], urgency:'routine', action:'A routine teleconsultation is sufficient — rest at home and drink fluids.'},
 ];
+const URGENCY_RANK = {routine:1, priority:2, emergency:3};
+
 function runTriage(){
   const resultBox = document.getElementById('triage-result');
   let urgency = 'routine', action = 'A routine teleconsultation is recommended.';
+  let bestRank = 0;
   for(const rule of triageRules){
     const symptomHit = rule.match.some(m => selectedSymptoms.has(m));
     const textHit = rule.keywords.some(k => voiceText.toLowerCase().includes(k));
-    if(symptomHit || textHit){ urgency = rule.urgency; action = rule.action; break; }
+    if(symptomHit || textHit){
+      const rank = URGENCY_RANK[rule.urgency];
+      if(rank > bestRank){
+        bestRank = rank;
+        urgency = rule.urgency;
+        action = rule.action;
+      }
+    }
   }
   if(selectedSymptoms.size === 0 && !voiceText){ urgency = 'routine'; action = 'Select a symptom above or speak to get advice.'; }
 
@@ -1611,17 +1625,91 @@ function runTriage(){
   if(urgency === 'emergency'){ triggerEmergencyHospitalAlert(); }
 }
 
-function startVoiceRecognition(){
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+function startVoiceRecognition() {
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
   const caption = document.getElementById('voice-caption');
-  if(!SpeechRecognition){ caption.innerText = 'Voice input not supported in this browser.'; return; }
+
+  if (!SpeechRecognition) {
+    caption.innerText =
+      'Voice input is not supported in this browser. Please use Chrome.';
+    return;
+  }
+
+  // Clear the previous voice input before starting a new attempt
+  voiceText = '';
+
   const recognition = new SpeechRecognition();
-  recognition.lang = (currentLanguage === 'mr') ? 'mr-IN' : (currentLanguage === 'hi') ? 'hi-IN' : 'en-IN';
+
+  recognition.lang =
+    currentLanguage === 'mr'
+      ? 'mr-IN'
+      : currentLanguage === 'hi'
+        ? 'hi-IN'
+        : 'en-IN';
+
   recognition.interimResults = false;
-  recognition.onstart = () => caption.innerText = 'Listening… (ऐकत आहे / सुन रहे हैं)';
-  recognition.onresult = (e) => { voiceText = e.results[0][0].transcript; caption.innerText = `"${voiceText}"`; runTriage(); };
-  recognition.onerror = () => caption.innerText = 'Could not hear clearly — tap to try again.';
-  recognition.start();
+  recognition.continuous = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    caption.innerText =
+      'Listening… Speak now. (ऐकत आहे / सुन रहे हैं)';
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+
+    if (transcript) {
+      voiceText = transcript;
+      caption.innerText = `"${voiceText}"`;
+      runTriage();
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.log('Speech recognition error:', event.error);
+
+    switch (event.error) {
+      case 'no-speech':
+        caption.innerText =
+          'No speech detected. Please speak clearly and try again.';
+        break;
+
+      case 'not-allowed':
+      case 'service-not-allowed':
+        caption.innerText =
+          'Microphone access was denied. Please allow microphone access and try again.';
+        break;
+
+      case 'audio-capture':
+        caption.innerText =
+          'Microphone could not be detected. Please check your microphone.';
+        break;
+
+      case 'network':
+        caption.innerText =
+          'Voice service could not be reached. Please check your internet connection.';
+        break;
+
+      default:
+        caption.innerText =
+          'Voice input failed. Please try again or select a symptom manually.';
+    }
+  };
+
+  recognition.onend = () => {
+    console.log('Speech recognition ended.');
+  };
+
+  try {
+    recognition.start();
+  } catch (error) {
+    console.log('Could not start speech recognition:', error);
+    caption.innerText =
+      'Could not start voice input. Please try again.';
+  }
 }
 
 /* ---------------- TELECONSULT ---------------- */
@@ -1701,9 +1789,23 @@ let memoryVisits = [
   {id:1, complaint:'Hypertension & Headache', bp:'142/92', timestamp:new Date().toISOString()}
 ];
 
+/* Generates a 14-digit ABHA (Ayushman Bharat Health Account) number,
+   displayed in the standard xx-xxxx-xxxx-xxxx grouping.
+   Kept stable per patient for this session instead of being
+   re-rolled on every save, since a person's ABHA ID doesn't change
+   between visits. */
+function generateABHANumber(){
+  let digits = '';
+  for(let i=0;i<14;i++){ digits += Math.floor(Math.random()*10); }
+  return `${digits.slice(0,2)}-${digits.slice(2,6)}-${digits.slice(6,10)}-${digits.slice(10,14)}`;
+}
+let currentABHAId = generateABHANumber();
+document.getElementById('abha-id-display').innerText = currentABHAId;
+
 function saveHealthData(){
   const payload = {
     id: Date.now(),
+    abhaId: currentABHAId,
     name: document.getElementById('pat-name').value,
     age: document.getElementById('pat-age').value,
     complaint: 'BP Spike Checkup',
@@ -1713,6 +1815,8 @@ function saveHealthData(){
   };
   memoryVisits.unshift(payload);
   renderVisitHistory();
+
+  document.getElementById('abha-id-display').innerText = currentABHAId;
 
   const b64Payload = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   const qrContainer = document.getElementById('qr-container');
@@ -1959,7 +2063,7 @@ let translatorReady = false;
 function googleTranslateElementInit(){
   new google.translate.TranslateElement({
     pageLanguage:'en',
-    includedLanguages:'hi,mr,bn,gu,ur,te,ta,kn,en',
+    includedLanguages:'hi,mr,en',
     layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
     autoDisplay:false
   }, 'google_translate_element');
@@ -1967,15 +2071,15 @@ function googleTranslateElementInit(){
 }
 function waitForTranslatorReady(attempt=0){
   const combo = document.querySelector('#google_translate_element select.goog-te-combo');
-  const langSelect = document.getElementById('lang-select');
   const loadingIcon = document.getElementById('lang-loading');
   if(combo){
     translatorReady = true;
-    langSelect.disabled = false;
     if(loadingIcon) loadingIcon.classList.add('hidden');
     return;
   }
   if(attempt > 30){
+    // Page-text translation never came up (e.g. no internet reaching Google).
+    // The language dropdown itself keeps working for app language & voice regardless.
     if(loadingIcon) loadingIcon.classList.add('hidden');
     return;
   }
@@ -1994,7 +2098,7 @@ window.addEventListener('load', () => {
 });
 </script>
 <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
-  onerror="document.getElementById('lang-select').title='Translator offline'; document.getElementById('lang-loading').classList.add('hidden');">
+  onerror="document.getElementById('lang-loading').classList.add('hidden');">
 </script>
 </body>
 </html>
