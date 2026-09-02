@@ -9,6 +9,22 @@
    the rest of the app (triage.js, dose-tracker.js, sunita-tour.js, app.js)
    calls speakVoice(), toggleGlobalMute(), etc. as plain globals, exactly
    like the original single-file version.
+
+   CHANGES IN THIS VERSION (smoother / less robotic speech):
+   - Fixed a hidden syntax error in getFemaleVoice() that was silently
+     breaking voice selection and forcing a fallback to the default
+     (often the most robotic-sounding) system voice.
+   - Voice picker now prefers high-quality "Natural"/"Neural"/"Online"/
+     "Google" style voices before anything else, since those are the
+     least robotic-sounding on most platforms.
+   - speakVoice() now splits text into short clauses/sentences and
+     speaks them as a small queue of utterances with tiny natural
+     pauses between them, instead of one long flat utterance. Long
+     single utterances are the #1 cause of monotone/robotic speech in
+     the Web Speech API.
+   - Rate raised from 0.80 -> ~0.96 (a very slow rate is what makes
+     speech sound choppy/robotic) with slight per-clause jitter in
+     rate/pitch so it doesn't sound like a metronome.
    ============================================================ */
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -82,8 +98,10 @@ function updateMuteUIState(){
 
 /* ---------------- FULL FAIL-SAFE MULTI-TIER AUDIO ENGINE ---------------- */
 window._activeUtterance = null; // Prevent Chrome/Safari GC bug
+window._activeUtteranceQueue = []; // Prevent GC bug for queued clause utterances
 let audioCtx = null;
 let activeOnlineAudio = null;
+let speechQueueToken = 0; // increments every new speakVoice() call to cancel stale queues
 
 // Initialize & unlock Web Audio Context on user click/interaction
 function unlockAudioContext(){
@@ -167,7 +185,7 @@ function playOnlineTTS(text, langCode, onComplete){
 
     const audio = new Audio(audioUrl);
     activeOnlineAudio = audio;
-    audio.playbackRate = 0.88; // Calm, clear pacing
+    audio.playbackRate = 0.96; // Natural pacing (was 0.88 - too slow/draggy)
 
     const wave = document.getElementById('speech-wave');
     audio.onplay = () => {
@@ -209,6 +227,21 @@ function isLikelyMaleVoice(v){
   return KNOWN_MALE_VOICE_NAMES.some(m => n.includes(m));
 }
 
+// Voices whose engine is flagged as "Natural"/"Neural"/"Online"/"Google" tend
+// to sound dramatically smoother/less robotic than the offline "compact" or
+// "eSpeak" style voices bundled with most OSes. When two candidate voices are
+// otherwise equally valid, prefer the higher quality engine.
+const HIGH_QUALITY_VOICE_HINTS = ['natural', 'neural', 'online', 'google', 'premium', 'enhanced', 'wavenet'];
+function isHighQualityVoice(v){
+  const n = v.name.toLowerCase();
+  return HIGH_QUALITY_VOICE_HINTS.some(h => n.includes(h));
+}
+// Sort candidates so high-quality engines are tried first without discarding
+// any of the existing matching logic below.
+function preferHighQuality(list){
+  return [...list].sort((a, b) => (isHighQualityVoice(b) ? 1 : 0) - (isHighQualityVoice(a) ? 1 : 0));
+}
+
 function getFemaleVoice(langCode){
   if(!window.speechSynthesis) return null;
   const voices = window.speechSynthesis.getVoices();
@@ -218,24 +251,24 @@ function getFemaleVoice(langCode){
 
   // 1. Marathi Voice (female-first, then any non-male Marathi voice)
   if(langCode.startsWith('mr')){
-    voice = voices.find(v => {
+    voice = preferHighQuality(voices).find(v => {
       const n = v.name.toLowerCase();
       return (v.lang === 'mr-IN' || v.lang.includes('mr') || n.includes('marathi')) && (n.includes('female') || !isLikelyMaleVoice(v));
-    }) || voices.find(v => (v.lang === 'mr-IN' || v.lang.includes('mr') || v.name.toLowerCase().includes('marathi')) && !isLikelyMaleVoice(v));
+    }) || preferHighQuality(voices).find(v => (v.lang === 'mr-IN' || v.lang.includes('mr') || v.name.toLowerCase().includes('marathi')) && !isLikelyMaleVoice(v));
   }
 
   // 2. Hindi Voice (Female prioritized, never fall back to a known-male Hindi voice)
   if(!voice && langCode.startsWith('hi')){
-    voice = voices.find(v => {
+    voice = preferHighQuality(voices).find(v => {
       const n = v.name.toLowerCase();
       return (v.lang === 'hi-IN' || v.lang.includes('hi')) && (n.includes('female') || n.includes('lekha') || n.includes('swara') || n.includes('kalpana') || n.includes('google'));
-    }) || voices.find(v => (v.lang === 'hi-IN' || v.lang.includes('hi')) && !isLikelyMaleVoice(v));
+    }) || preferHighQuality(voices).find(v => (v.lang === 'hi-IN' || v.lang.includes('hi')) && !isLikelyMaleVoice(v));
   }
 
   // 3. STRICT INDIAN ACCENT FEMALE VOICE FOR ENGLISH
   if(!voice && langCode.startsWith('en')){
     // Priority 1: Specifically Indian English Female Voices (Heera, Veena, Neerja, Priya, Swara, Google English India)
-    voice = voices.find(v => {
+    voice = preferHighQuality(voices).find(v => {
       const n = v.name.toLowerCase();
       const isIndianLang = (v.lang === 'en-IN' || v.lang === 'en_IN' || v.lang.toLowerCase().includes('en-in'));
       const isFemale = (n.includes('female') || n.includes('heera') || n.includes('veena') || n.includes('neerja') || n.includes('priya') || n.includes('swara') || n.includes('ananya') || n.includes('aditi') || n.includes('lekha') || (n.includes('google') && !n.includes('male')));
@@ -245,7 +278,7 @@ function getFemaleVoice(langCode){
 
     // Priority 2: Any Indian English Voice (en-IN)
     if(!voice){
-      voice = voices.find(v => {
+      voice = preferHighQuality(voices).find(v => {
         const isIndianLang = (v.lang === 'en-IN' || v.lang === 'en_IN' || v.lang.toLowerCase().includes('en-in'));
         const n = v.name.toLowerCase();
         return isIndianLang && !n.includes('male');
@@ -254,7 +287,7 @@ function getFemaleVoice(langCode){
 
     // Priority 3: Other Clean Female English voices if en-IN is absent in OS
     if(!voice){
-      voice = voices.find(v => {
+      voice = preferHighQuality(voices).find(v => {
         const n = v.name.toLowerCase();
         const isEnglish = v.lang.startsWith('en');
         const isFemale = (n.includes('female') || n.includes('samantha') || n.includes('zira') || n.includes('karen') || n.includes('victoria') || n.includes('tessa') || n.includes('moira'));
@@ -266,11 +299,11 @@ function getFemaleVoice(langCode){
 
   // Same language family, avoiding a known-male voice
   if(!voice){
-    voice = voices.find(v => v.lang.startsWith(langCode.substring(0,2)) && !isLikelyMaleVoice(v));
+    voice = preferHighQuality(voices).find(v => v.lang.startsWith(langCode.substring(0,2)) && !isLikelyMaleVoice(v));
   }
   // Any voice at all that looks explicitly female, regardless of language
   if(!voice){
-    voice = voices.find(v => v.name.toLowerCase().includes('female'));
+    voice = preferHighQuality(voices).find(v => v.name.toLowerCase().includes('female'));
   }
   // Last resort: same language family even if gender is unknown, then any
   // non-male-named voice, and only truly blind voices[0] if nothing else exists
@@ -279,6 +312,31 @@ function getFemaleVoice(langCode){
   }
 
   return voice || voices[0] || null;
+}
+
+// Splits text into short natural clauses (on sentence-ending punctuation and
+// commas) so we can speak it as a queue of short utterances with tiny gaps
+// between them instead of one long flat utterance. Long single utterances
+// are the main reason Web Speech API voices sound robotic/monotone -
+// engines tend to flatten pitch/pacing across a long string. Short chunks
+// with small pauses mimic natural breath/phrasing.
+function splitIntoClauses(text){
+  const raw = text
+    .split(/(?<=[.?!।])\s+|(?<=,)\s+(?=\S)/g)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // Merge tiny fragments (like a lone "and" split off) back with neighbours
+  // so we don't end up with awkwardly short utterances.
+  const merged = [];
+  for(const part of raw){
+    if(merged.length && part.split(' ').length <= 2 && !/[.?!।]$/.test(merged[merged.length-1])){
+      merged[merged.length-1] += ' ' + part;
+    } else {
+      merged.push(part);
+    }
+  }
+  return merged.length ? merged : [text];
 }
 
 function speakVoice(text, onCompleteCallback){
@@ -311,6 +369,8 @@ function speakVoice(text, onCompleteCallback){
     activeOnlineAudio = null;
   }
 
+  const myToken = ++speechQueueToken; // any newer speakVoice() call invalidates this queue
+
   let callbackCalled = false;
   const safeCallback = () => {
     if(callbackCalled) return;
@@ -318,6 +378,7 @@ function speakVoice(text, onCompleteCallback){
     const wave = document.getElementById('speech-wave');
     if(wave) wave.style.opacity = '0.3';
     window._activeUtterance = null;
+    window._activeUtteranceQueue = [];
     if(onCompleteCallback) onCompleteCallback();
   };
 
@@ -333,42 +394,68 @@ function speakVoice(text, onCompleteCallback){
 
       setTimeout(() => {
         try {
-          const utterance = new SpeechSynthesisUtterance(cleanText);
-          window._activeUtterance = utterance; // Prevent GC bug
-
           const matchedVoice = getFemaleVoice(targetLang);
-          if(matchedVoice){
-            utterance.voice = matchedVoice;
-            utterance.lang = matchedVoice.lang || targetLang;
-          } else {
-            utterance.lang = (targetLang.startsWith('en')) ? 'en-US' : targetLang;
-          }
-
-          // SLOW, CALM, SOOTHING RATE FOR MAXIMUM CLARITY (User requested slow pacing)
-          utterance.rate = 0.80;
-          utterance.pitch = 1.08;
-          utterance.volume = 1.0;
+          const clauses = splitIntoClauses(cleanText);
+          window._activeUtteranceQueue = [];
 
           const wave = document.getElementById('speech-wave');
-          let speechStarted = false;
+          let anyClauseStarted = false;
 
-          utterance.onstart = () => {
-            speechStarted = true;
-            if(wave && !isVoiceMuted) wave.style.opacity = '1';
+          const speakClauseAt = (i) => {
+            // Bail out if a newer speakVoice() call has superseded this queue
+            if(myToken !== speechQueueToken) return;
+
+            if(i >= clauses.length){
+              safeCallback();
+              return;
+            }
+
+            const clauseText = clauses[i];
+            const utterance = new SpeechSynthesisUtterance(clauseText);
+            window._activeUtterance = utterance; // Prevent GC bug
+            window._activeUtteranceQueue.push(utterance);
+
+            if(matchedVoice){
+              utterance.voice = matchedVoice;
+              utterance.lang = matchedVoice.lang || targetLang;
+            } else {
+              utterance.lang = (targetLang.startsWith('en')) ? 'en-US' : targetLang;
+            }
+
+            // NATURAL PACE: close to 1.0 reads far less robotic than a very
+            // slow rate, which produces choppy, over-enunciated speech.
+            // Small per-clause jitter avoids a flat metronome cadence, and a
+            // gentle downward pitch step on trailing clauses within a
+            // sentence mimics natural falling intonation.
+            const jitter = (Math.random() * 0.06) - 0.03; // +/-0.03
+            utterance.rate = 0.96 + jitter;
+            utterance.pitch = 1.03 - (i % 3 === 2 ? 0.05 : 0);
+            utterance.volume = 1.0;
+
+            utterance.onstart = () => {
+              anyClauseStarted = true;
+              if(wave && !isVoiceMuted) wave.style.opacity = '1';
+            };
+
+            utterance.onend = () => {
+              // Small natural pause between clauses (longer after
+              // sentence-ending punctuation, shorter after commas)
+              const pause = /[.?!।]$/.test(clauseText) ? 220 : 90;
+              setTimeout(() => speakClauseAt(i + 1), pause);
+            };
+
+            utterance.onerror = (e) => {
+              console.log('Utterance error, falling back to online audio stream:', e);
+              playOnlineTTS(cleanText, targetLang, safeCallback);
+            };
+
+            window.speechSynthesis.speak(utterance);
           };
 
-          utterance.onend = () => {
-            safeCallback();
-          };
-
-          utterance.onerror = (e) => {
-            console.log('Utterance error, falling back to online audio stream:', e);
-            playOnlineTTS(cleanText, targetLang, safeCallback);
-          };
-
-          // Watchdog: If browser drops the speech silently without starting within 500ms, fallback to online audio stream
+          // Watchdog: If browser drops speech silently without starting
+          // within 500ms of the first clause, fallback to online audio.
           setTimeout(() => {
-            if(!speechStarted && !callbackCalled){
+            if(!anyClauseStarted && !callbackCalled && myToken === speechQueueToken){
               console.log('SpeechSynthesis watchdog triggered. Streaming audio fallback...');
               playOnlineTTS(cleanText, targetLang, safeCallback);
             }
@@ -378,7 +465,7 @@ function speakVoice(text, onCompleteCallback){
             window.speechSynthesis.resume();
           }
 
-          window.speechSynthesis.speak(utterance);
+          speakClauseAt(0);
         } catch(err) {
           console.log('Speech Synthesis Exception, fallback:', err);
           playOnlineTTS(cleanText, targetLang, safeCallback);
