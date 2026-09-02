@@ -1,5 +1,5 @@
-// src/routes/api.js
 const express = require('express');
+
 const router = express.Router();
 
 const authController = require('../controllers/authController');
@@ -7,40 +7,161 @@ const queueController = require('../controllers/queueController');
 const syncController = require('../controllers/syncController');
 const sosController = require('../controllers/sosController');
 
-// ---- Profile / ABHA ----
-router.route('/profile')
-  .get(authController.getProfile)
-  .post(authController.saveProfile);
+const {
+  validateAppointment,
+  checkValidation: checkAppointment
+} = require('../validators/appointmentValidator');
 
-// ---- Appointments & live queue ----
-router.get('/queue', queueController.getQueue);
-router.post('/appointments', queueController.bookAppointment);
+const {
+  validateProfile,
+  checkValidation: checkProfile
+} = require('../validators/profileValidator');
 
-// ---- Offline ASHA sync ----
-router.route('/sync/asha')
-  .get(syncController.getSyncHistory)
-  .post(syncController.syncAshaRecords);
+const {
+  validateProfileBatch,
+  checkValidation: checkProfileBatch
+} = require('../validators/profileBatchValidator');
 
-// ---- Emergency, with a basic cooldown guard ----
-const sosCooldown = new Map(); // ip -> last dispatch timestamp (ms)
+const {
+  validateAshaSync,
+  checkValidation: checkAshaSync
+} = require('../validators/syncValidator');
 
-router.post('/sos', (req, res, next) => {
-  const key = req.ip;
-  const last = sosCooldown.get(key) || 0;
-  if (Date.now() - last < 10000) {
-    return res.status(429).json({ ok: false, error: 'SOS already dispatched — please wait before retrying' });
-  }
-  sosCooldown.set(key, Date.now());
-  next();
-}, sosController.dispatch);
+const { sosGuard } = require('../validators/sosValidator');
 
-// ---- Health check, now DB-aware ----
+
+// Debug: check that all required functions exist
+console.log('--- API ROUTE CHECK ---');
+
+console.log(
+  'authController.getProfile:',
+  typeof authController.getProfile
+);
+
+console.log(
+  'authController.saveProfile:',
+  typeof authController.saveProfile
+);
+
+console.log(
+  'authController.syncProfiles:',
+  typeof authController.syncProfiles
+);
+
+console.log(
+  'queueController.getQueue:',
+  typeof queueController.getQueue
+);
+
+console.log(
+  'queueController.bookAppointment:',
+  typeof queueController.bookAppointment
+);
+
+console.log(
+  'validateAppointment:',
+  typeof validateAppointment
+);
+
+console.log(
+  'checkAppointment:',
+  typeof checkAppointment
+);
+
+console.log(
+  'syncController.getSyncHistory:',
+  typeof syncController.getSyncHistory
+);
+
+console.log(
+  'syncController.syncAshaRecords:',
+  typeof syncController.syncAshaRecords
+);
+
+console.log(
+  'sosController.dispatch:',
+  typeof sosController.dispatch
+);
+
+console.log(
+  'sosGuard:',
+  typeof sosGuard
+);
+
+console.log('-----------------------');
+
+
+// PROFILE
+router.get(
+  '/profile',
+  authController.getProfile
+);
+
+router.post(
+  '/profile',
+  validateProfile,
+  checkProfile,
+  authController.saveProfile
+);
+
+
+// PROFILE SYNC
+router.post(
+  '/sync/profiles',
+  validateProfileBatch,
+  checkProfileBatch,
+  authController.syncProfiles
+);
+
+
+// QUEUE
+router.get(
+  '/queue',
+  queueController.getQueue
+);
+
+
+// APPOINTMENTS
+router.post(
+  '/appointments',
+  validateAppointment,
+  checkAppointment,
+  queueController.bookAppointment
+);
+
+
+// ASHA SYNC
+router.get(
+  '/sync/asha',
+  syncController.getSyncHistory
+);
+
+router.post(
+  '/sync/asha',
+  validateAshaSync,
+  checkAshaSync,
+  syncController.syncAshaRecords
+);
+
+
+// SOS
+router.post(
+  '/sos',
+  sosGuard,
+  sosController.dispatch
+);
+
+
+// HEALTH CHECK
 router.get('/health', (req, res) => {
   res.json({
     ok: true,
     service: 'gram-arogya-connect-api',
-    db: req.app.get('dbStatus')()
+    db: req.app.get('dbStatus')
+      ? req.app.get('dbStatus')()
+      : 'unknown'
   });
 });
+
 
 module.exports = router;

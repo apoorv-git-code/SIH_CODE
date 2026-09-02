@@ -9,14 +9,26 @@
 
 function maskId(value, keepStart = 2, keepEnd = 4) {
   if (!value) return 'XX-XXXX-XXXX-XXXX';
+
   const clean = String(value).replace(/\s+/g, '');
-  if (clean.length <= keepStart + keepEnd) return 'XX-XXXX-XXXX-XXXX';
+
+  if (clean.length <= keepStart + keepEnd) {
+    return 'XX-XXXX-XXXX-XXXX';
+  }
+
   const start = clean.slice(0, keepStart);
   const end = clean.slice(-keepEnd);
-  return `${start}${'X'.repeat(Math.max(clean.length - keepStart - keepEnd, 4))}${end}`;
+
+  return `${start}${'X'.repeat(
+    Math.max(clean.length - keepStart - keepEnd, 4)
+  )}${end}`;
 }
 
-// In-memory "database" — single demo patient, reset on server restart.
+
+// ========================================
+// IN-MEMORY PATIENT PROFILE
+// ========================================
+
 let profile = {
   name: 'Sunita Tai More',
   abhaNumber: maskId('914523887190XX'),
@@ -29,13 +41,31 @@ let profile = {
   conditions: 'Primary Hypertension (Stage 1), Giddiness on exertion',
   allergies: 'Sulfa Drugs (Mild rash)',
   maternalStatus: 'no',
-  vitals: { bp: '142/92', spo2: 97 },
+
+  vitals: {
+    bp: '142/92',
+    spo2: 97
+  },
+
   updatedAt: new Date().toISOString()
 };
 
+
+// ========================================
+// GET PROFILE
+// ========================================
+
 exports.getProfile = (req, res) => {
-  res.json({ ok: true, profile });
+  res.json({
+    ok: true,
+    profile
+  });
 };
+
+
+// ========================================
+// SAVE PROFILE
+// ========================================
 
 exports.saveProfile = (req, res) => {
   const body = req.body || {};
@@ -43,10 +73,54 @@ exports.saveProfile = (req, res) => {
   profile = {
     ...profile,
     ...body,
-    // Never trust/store a raw ID number verbatim — always re-mask it.
-    abhaNumber: maskId(body.abhaNumber || profile.abhaNumber),
+
+    // Never store a raw ID number.
+    abhaNumber: maskId(
+      body.abhaNumber || profile.abhaNumber
+    ),
+
     updatedAt: new Date().toISOString()
   };
 
-  res.json({ ok: true, profile });
+  res.json({
+    ok: true,
+    profile
+  });
+};
+
+
+// ========================================
+// SYNC OFFLINE PROFILES
+// ========================================
+
+exports.syncProfiles = (req, res) => {
+  const body = req.body || {};
+
+  // Expecting something like:
+  // {
+  //   "profiles": [
+  //      {...},
+  //      {...}
+  //   ]
+  // }
+
+  const profiles = Array.isArray(body.profiles)
+    ? body.profiles
+    : [];
+
+  const syncedProfiles = profiles.map((item) => ({
+    ...item,
+
+    // Mask ABHA before returning anything
+    abhaNumber: maskId(item.abhaNumber),
+
+    syncedAt: new Date().toISOString()
+  }));
+
+  res.json({
+    ok: true,
+    message: 'Profiles synced successfully',
+    count: syncedProfiles.length,
+    profiles: syncedProfiles
+  });
 };
