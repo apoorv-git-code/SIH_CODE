@@ -299,7 +299,7 @@ const sunitaTourSteps = [
     badge: '1 / 7 · Welcome',
     text: {
       hi: "नमस्ते! मैं सुनिता ताई हूँ। ग्राम आरोग्य कनेक्ट हमारे पूरे गाँव को बिना लाइन में लगे तुरंत और आसान स्वास्थ्य सेवा देता है। चलिए, मैं आपको सभी सुविधाएँ धीरे-धीरे दिखाती हूँ।",
-      mr: "नमस्कार! मी सुनिता ताई. ग्राम आरोग्य कनेक्ट आपल्या गावाला उन्हात न थांबता जलद आरोग्य सेवा देते. चला, मी तुम्हाला सर्व सुविधा सावकाश दाखवते.",
+      mr: "नमस्कार! मी सुनीता ताई आहे. ग्राम आरोग्य कनेक्ट आपल्या संपूर्ण गावाला रांगेत न लागता जलद आणि सोपी आरोग्यसेवा देते. चला, मी तुम्हाला सर्व सुविधा हळूहळू आणि एकेक करून समजावून सांगते.",
       en: "Namaskar! I am Sunita Tai. Gram Arogya Connect gives our entire village fast, simple healthcare without the long wait. Let me calmly guide you through every function step by step."
     },
     action: async () => {
@@ -312,7 +312,7 @@ const sunitaTourSteps = [
     badge: '2 / 7 · Triage & Doctor Call',
     text: {
       hi: "पहला है डिजिटल ट्रायज! बीमार होने पर कुछ भी लिखने की जरूरत नहीं। बस बीमारी के चित्र पर टैप करें या बोलकर बताएं। आप तुरंत डॉक्टर से फोन पर बात कर सकते हैं!",
-      mr: "पहिले म्हणजे डिजिटल ट्रायज! आजारी असाल तर काहीही टाईप न करता फक्त चित्रावर बोट ठेवा किंवा तोंडाने बोला. थेट सरकारी डॉक्टरांशी ऑडिओ कॉलवर बोलता येते!",
+      mr: "सर्वप्रथम, डिजिटल ट्रायज! तुम्हाला बरं वाटत नसेल, तर काहीही लिहिण्याची गरज नाही. फक्त आजाराच्या चित्रावर टॅप करा किंवा बोलून सांगा. तुम्ही लगेच सरकारी डॉक्टरांशी ऑडिओ कॉलद्वारे सल्ला घेऊ शकता",
       en: "First, Digital Triage. If you feel unwell, simply tap the illness picture or speak aloud. You can immediately consult with the government doctor over an audio call."
     },
     action: async () => {
@@ -330,7 +330,7 @@ const sunitaTourSteps = [
     badge: '3 / 7 · Appointments & Live Queue',
     text: {
       hi: "दूसरा है लाइव टोकन! घर से ही समय बुक करें और स्क्रीन पर चालू टोकन नंबर देखें। अब धूप में ३ घंटे लाइन में लगने की जरूरत नहीं, आपका नंबर आने पर ही जाएं!",
-      mr: "दुसरे म्हणजे थेट रांग व्यवस्थापन! घरातूनच वेळ बुक करा आणि स्क्रीनवर चालू असलेला नंबर पहा. उन्हात ३ तास थांबण्याची अजिबात गरज नाही!",
+      mr: "दुसरे आहे लाईव्ह क्यू! घरबसल्या आपली वेळ बुक करा आणि स्क्रीनवर आपला चालू टोकन नंबर पाहा. आता दवाखान्यात मोठ्या रांगेत तासन्‌तास उभे राहण्याची गरज नाही. तुमचा नंबर आल्यावरच दवाखान्यात जा",
       en: "Next is Live Queue. Book your appointment slot from home and track your live token number on screen so you never wait in the hospital line."
     },
     action: async () => {
@@ -346,7 +346,7 @@ const sunitaTourSteps = [
     badge: '4 / 7 · ABHA Digital Passport',
     text: {
       hi: "यह हमारा अलग और खास १४ अंकों का ABHA डिजिटल हेल्थ पासपोर्ट है! बिना इंटरनेट भी क्यूआर कोड में पूरा पर्चा रहता है, और बोलकर भी खुराक बताता है!",
-      mr: "हा आपला वेगळा १४ अंकी ABHA डिजिटल हेल्थ पासपोर्ट! सर्व आजाराची माहिती या ऑफलाइन क्यूआर कोडमध्ये साठवली जाते आणि बोलूनही सांगते!",
+      mr: "हा आपला खास १४ अंकी ABHA डिजिटल हेल्थ पासपोर्ट आहे! तुमची सर्व वैद्यकीय माहिती आणि औषधांची पर्ची या ऑफलाइन QR कोडमध्ये सुरक्षितपणे जतन केलेली असते!",
       en: "This is our dedicated 14-digit ABHA Digital Health Passport. All your medical history and prescriptions are securely saved in this offline QR code."
     },
     action: async () => {
@@ -360,7 +360,7 @@ const sunitaTourSteps = [
     badge: '5 / 7 · Govt Health Schemes',
     text: {
       hi: "यह हमारा सरकारी स्वास्थ्य योजना विभाग है! यहाँ आयुष्मान भारत PM-JAY और महात्मा ज्योतिराव फुले योजना में पूरे ५ लाख रुपये का मुफ़्त इलाज मिलता है।",
-      mr: "हा आपला सरकारी आरोग्य योजना विभाग आहे! येथे महात्मा ज्योतिराव फुले आणि आयुष्मान भारत योजनेतून कुटुंबासाठी ५ लाख रुपयांचे मोफत उपचार मिळतात.",
+      mr: "हा आपला सरकारी आरोग्य योजना विभाग आहे! येथे आयुष्मान भारत PM-JAY आणि महात्मा ज्योतिराव फुले योजनेअंतर्गत ५ लाख रुपयांपर्यंत मोफत उपचार मिळू शकतात. तुमच्या कुटुंबाला या योजनेचा लाभ मिळतो का, ते येथे तपासा",
       en: "This is our dedicated Government Health Schemes section. Check your family's eligibility for up to ₹5 Lakhs free cashless coverage under PM-JAY and MJPJAY."
     },
     action: async () => {
@@ -374,7 +374,7 @@ const sunitaTourSteps = [
     badge: '6 / 7 · Daily Medicines Tracker',
     text: {
       hi: "दवाओं के लिए यह खास डोज़ ट्रैकर है! अगर दवा दिन में दो बार खानी है तो दो गोले दिखेंगे, टैप करते ही डोज़ पूरी हो जाएगी और अलार्म भी बोलेगा!",
-      mr: "औषधांसाठी हा खास डोस ट्रॅकर आहे! दिवसातून २ गोळ्या असतील तर २ गोल दिसतील, गोळी घेतल्यानंतर फक्त बोट ठेवा आणि डोस पूर्ण होईल!",
+      mr: "औषधांसाठी हा खास डोस ट्रॅकर आहे! जर औषध दिवसातून दोन वेळा घ्यायचे असेल, तर दोन गोल दिसतील. त्यावर टॅप केल्यावर औषध घेतल्याची नोंद होईल!",
       en: "Here is our Daily Medicines Tracker. If a medicine is prescribed twice daily, you see 2 interactive circles. Tapping them marks your dose as complete."
     },
     action: async () => {
@@ -390,7 +390,7 @@ const sunitaTourSteps = [
     badge: '7 / 7 · ASHA & 24x7 Night Care',
     text: {
       hi: "अंत में, हमारी आशा दीदी इस लिस्ट से घर-घर जाकर मरीजों की देखभाल करती हैं। और कोई भी परेशानी हो तो नीचे मेरे चैटबॉट से सीधे बात करें!",
-      mr: "शेवटी, आपल्या गावातील आशा ताई गरोदर माता व रुग्णांच्या गृहभेटीसाठी ही यादी वापरतात. काहीही अडचण असल्यास माझ्या चॅटबॉटशी बोला!",
+      mr: "शेवटी, आपल्या आशा दीदी या यादीच्या मदतीने घरोघरी जाऊन रुग्णांची काळजी घेतात. तुम्हाला काहीही अडचण आली तर खाली माझ्या चॅटबॉटशी थेट बोला",
       en: "Finally, our frontline ASHA workers use this priority list for maternal and home visits. If you ever need help, tap my assistant button anytime."
     },
     action: async () => {

@@ -27,9 +27,9 @@
      rate/pitch so it doesn't sound like a metronome.
    ============================================================ */
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+// const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/* ---------------- GLOBAL AUDIO & MUTE STATE ---------------- */
+// /* ---------------- GLOBAL AUDIO & MUTE STATE ---------------- */
 let isVoiceMuted = false;
 let currentLanguage = 'en';
 
@@ -500,3 +500,5 @@ if(typeof window !== 'undefined' && window.speechSynthesis){
     window.speechSynthesis.getVoices();
   };
 }
+
+
