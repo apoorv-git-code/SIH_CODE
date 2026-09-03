@@ -128,3 +128,13 @@ function handleRegOCR(event){
     event.target.value = '';
   });
 }
+
+const BACKEND_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:4000'
+  : 'https://sih-backend.onrender.com'; // Replace with your actual Render URL
+
+// Example Socket.io connection:
+const socket = io(BACKEND_URL);
+
+// Example Fetch API call:
+fetch(`${BACKEND_URL}/api/v1/profile`);
