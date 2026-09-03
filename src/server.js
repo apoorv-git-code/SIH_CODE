@@ -51,3 +51,13 @@ const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
   console.log(`Gram Arogya Connect server running on http://localhost:${PORT}`);
 });
+
+const cors = require('cors');
+app.use(cors({ origin: 'https://apoorv-git-code.github.io' }));
+
+const io = require('socket.io')(server, {
+  cors: {
+    origin: "https://apoorv-git-code.github.io",
+    methods: ["GET", "POST"]
+  }
+});
